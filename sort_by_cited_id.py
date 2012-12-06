@@ -1,17 +1,14 @@
 #!/usr/bin/python2.7
 import string, sys, os, itertools
 
-if __name__ == '__main__':
-    
-    f = open('/home/cail/deduped-context-and-matches.txt').readlines()
+if __name__ == '__main__':    
+    f = open(sys.argv[1]).readlines()
     print "done reading"
-    f.sort(key=lambda x:x.split('\t')[14])
+    f.sort(key=lambda x:x.split('\t')[2])
     print "done sorting"
-    outfile = open('contexts-and-matches_sorted_deduped.txt','w')
+    outfile = open(sys.argv[1].strip('.txt')+"sorted.txt",'w')
     for line in f:
-        tokens = line.split('\t')
-        outfile.write(tokens[14]+'\t'+"".join(tokens[4:7])+'\n')
+        outfile.write(line+'\n')
     outfile.close()
-    
     
 

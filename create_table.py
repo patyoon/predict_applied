@@ -44,36 +44,40 @@ def create_table(db_host, db_user, db_name, table_name, generator,
 
     #escape mysql escape characters if exists.
     s = ", ".join(map(lambda x: " ".join(map(escape_string, x)), column_names))
-
     if create_id :
         s = "Id INT PRIMARY KEY AUTO_INCREMENT, " + s
     create_statement += table_name + "( " + s + ")"
-    
+    filtered = filter(lambda x: 'char' in x[1], column_names)
+    print filtered
+    char_map = map(lambda x: (column_names.index(x), int(x[1].strip(')').split('(')[1])), filtered)
+    print char_map
     print create_statement
     
     #create table if not exists.
     cursor.execute(create_statement)
 
     i = 0
-
     #insert rows into the table using tuples yielded by generator
     for entry in generator.yield_tuple():
         #length of tuple must be equal to # of columns
         if len(entry) != len(column_names):
-            print "length of entry and number of column does not match"
+            print "length of entry and number of column does not match %d %d", (len(entry), len(column_names))
             sys.exit(1)
+        if char_map:
+            for char in char_map:
+                if len(entry[char[0]]) > char[1]:
+                    print "length exceeds the data size %s(%d)" % (entry[char[0]], char[1])
         entry = map(lambda x:  "'"+escape_string(x)+"'"  if x !='\N'
                     else "NULL", entry)
         insert_statement = ("INSERT INTO " + table_name + "(" + 
                             ", ".join(map(lambda x:escape_string(x[0]), 
                                           column_names)) 
                             + ") VALUES (" + ", ".join(entry) + ")")
-#        print insert_statement
+        #print insert_statement
         cursor.execute(insert_statement)
         i += cursor.rowcount
     return i
     
-
 if __name__ == "__main__":
     
     usage = ("usage: %prog [options] [db_name] [table_name]"
