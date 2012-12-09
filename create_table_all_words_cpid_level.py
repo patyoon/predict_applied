@@ -7,12 +7,6 @@ from MySQLdb import connect, escape_string
 
 JOURNAL_TABLE_NAME = 'journal'
 
-def normalize_whitespace(str):
-    import re
-    str = str.strip()
-    str = re.sub(r'\s+', ' ', str)
-    return str
-
 def get_jid(cursor, jnl):
     cursor.execute('SELECT jid FROM '
                    + JOURNAL_TABLE_NAME +
@@ -29,12 +23,6 @@ if __name__ == '__main__':
              "'cited_paper_terms_count_sample_4m'"
              )
 
-    # STOP WORD is not used
-    # STOP_WORDS = set([
-    #         'a', 'an', 'and', 'are', 'as', 'be', 'by', 'for', 'if', 'in', 
-    #         'is', 'it', 'of', 'or', 'py', 'rst', 'that', 'the', 'to', 'with',
-    #         ])
-
     TR = string.maketrans(string.punctuation, ' ' * len(string.punctuation))
 
     parser = OptionParser(usage)
@@ -49,13 +37,11 @@ if __name__ == '__main__':
 
     cursor = conn.cursor()
 
-    create_statement = "CREATE TABLE IF NOT EXISTS " + args[1]+" (jnl char(255), word char(50), count INT) "
+    create_statement = "CREATE TABLE IF NOT EXISTS " + args[1]+" (cpid char(255), word char(50), count INT) "
     print create_statement
     cursor.execute(create_statement)
-
-    f2 = open('jnl_abstract_word_segmentation', 'w')
-
-    curr_jnl = ""
+    
+    
     i = 0
     j = 0
     counter = Counter()
@@ -66,29 +52,24 @@ if __name__ == '__main__':
             line = line.translate(TR) # Strip punctuation
             i+=1
             if i % 100000 == 0:
-                print "processed ", i, "th line ", curr_jnl
+                print "processed ", i, "th line ", cpid
             #print line.split('\t')
-            jnl, sentences = (normalize_whitespace(line.split('\t')[2].lower().strip()),
-                              line.split('\t')[6].strip())
-            #jnl = get_jnl(cursor, jnl)
-            if jnl != curr_jnl:
-                if len(counter) > 0:
-                    for x in map(lambda (x,y,): ("'"+curr_jnl
-                                                 +"'", "'"+str(x)+"'", 
-                                                 str(y)), counter.items()):
-                        values = ', '.join(x)
-                        string = 'INSERT INTO ' + args[1] + ' VALUES('+values+')'
-                        cursor.execute(string)
-                        j += cursor.rowcount
-                        if j % 1000000 == 0:
-                            print "wrote ", j, "th record ", curr_jnl
-                curr_jnl = jnl
-                counter = Counter()
+            cpid, sentences = (line.split('\t')[0].strip(), line.split('\t')[6].strip())
+            #cpid = get_cpid(cursor, cpid)
+            counter = Counter()
             for word in sentences.split():
                 word = word.lower()
                 if len(word) > 30:
-                    print "length greater than 30 %s %s" %(word, jnl)
-                    f2.write(jnl+'\t'+word+'\n')
+                    print "length greater than 50 %s" %word
                 if word.isalpha():
                     counter[word] += 1
+            if len(counter) > 0:
+                for x in map(lambda (x,y,): ("'"+str(cpid)+"'", "'"+str(x)+"'", 
+                                             str(y)), counter.items()):
+                    values = ', '.join(x)
+                    string = 'INSERT INTO ' + args[1] + ' VALUES('+values+')'
+                    cursor.execute(string)
+                    j += cursor.rowcount
+                    if j % 1000000 == 0:
+                        print "wrote ", j, "th record ", cpid
     print "num entry created: ", j

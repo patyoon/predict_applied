@@ -28,7 +28,6 @@ if __name__ == '__main__':
              " "
              "'cited_paper_terms_count_sample_4m'"
              )
-
     # STOP WORD is not used
     # STOP_WORDS = set([
     #         'a', 'an', 'and', 'are', 'as', 'be', 'by', 'for', 'if', 'in', 
@@ -52,9 +51,7 @@ if __name__ == '__main__':
     create_statement = "CREATE TABLE IF NOT EXISTS " + args[1]+" (jnl char(255), word char(50), count INT) "
     print create_statement
     cursor.execute(create_statement)
-
-    f2 = open('jnl_abstract_word_segmentation', 'w')
-
+    
     curr_jnl = ""
     i = 0
     j = 0
@@ -69,7 +66,7 @@ if __name__ == '__main__':
                 print "processed ", i, "th line ", curr_jnl
             #print line.split('\t')
             jnl, sentences = (normalize_whitespace(line.split('\t')[2].lower().strip()),
-                              line.split('\t')[6].strip())
+                              line.split('\t')[5].strip())
             #jnl = get_jnl(cursor, jnl)
             if jnl != curr_jnl:
                 if len(counter) > 0:
@@ -86,9 +83,8 @@ if __name__ == '__main__':
                 counter = Counter()
             for word in sentences.split():
                 word = word.lower()
-                if len(word) > 30:
-                    print "length greater than 30 %s %s" %(word, jnl)
-                    f2.write(jnl+'\t'+word+'\n')
+                if len(word) > 50:
+                    print "length greater than 50 %s" %word
                 if word.isalpha():
                     counter[word] += 1
     print "num entry created: ", j

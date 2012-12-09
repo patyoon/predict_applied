@@ -79,7 +79,6 @@ def get_lil_term_by_cited_id(cursor, cited_id_index_dict, term_index_dict, word_
         #row standardize X as distribution
     return X
 
-
 def run_cos_sim(word_group_name):
     conn = connect(host = 'localhost', user = 'root',
                    db = 'shepard', passwd='shepard')
