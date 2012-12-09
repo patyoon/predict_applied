@@ -9,7 +9,7 @@ from run_cos_sim import get_index_term_dicts, get_cited_id_index_dict
 
 JOURNAL_LEVEL_COUNT_TABLE = 'journal_MED_jid_word_count'
 PAPER_LEVEL_COUNT_TABLE = 'cpid_MED_jid_word_count'
-CORPUS_LEVEL_COUNT_TABLE = 'all_word_stop_MED_word_count'
+CORPUS_LEVEL_JNL_COUNT_TABLE = 'all_word_abstract_MED_word_count'
 
 def get_index_word_dicts(cursor):
     if os.path.exists("word_index_dict.pkl"):
@@ -152,5 +152,6 @@ if __name__ == "__main__":
     conn = connect(host = 'localhost', user = 'root',
                    db = 'shepard', passwd='shepard')
     cursor = conn.cursor()
-    #X1 = get_cpid_sparse_matrix(cursor)
+    X1 = get_cpid_sparse_matrix(cursor)
     X2 = get_journal_sparse_matrix(cursor)
+    X3 =

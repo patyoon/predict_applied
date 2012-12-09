@@ -33,13 +33,19 @@ if __name__ == '__main__':
     parser = OptionParser(usage)
     (options, args) = parser.parse_args()
 
-    if len(args) != 2:
-        print "need two arguments :  [input_text_file_name][table_name]"
+    if len(args) != 3:
+        print ("need four arguments :  [input_text_file_name][table_name]"
+               "[feature_type]")
         sys.exit(1)
 
     conn = connect(host = 'localhost', user = 'root',
                    db = 'shepard', passwd = 'shepard')
+
     cursor = conn.cursor()
+    if args[2] == 'title':
+        idx = 5
+    else:
+        idx = 6
 
     create_statement = "CREATE TABLE IF NOT EXISTS " + args[1]+" (word char(50), count INT) "
     print create_statement
@@ -58,7 +64,7 @@ if __name__ == '__main__':
             if i % 100000 == 0:
                 print "processed ", i, "th line ", curr_jnl
             #print line.split('\t')
-            jnl, sentences = (line.split('\t')[2].strip(), line.split('\t')[5].strip())
+            jnl, sentences = (line.split('\t')[2].strip(), line.split('\t')[idx].strip())
             for word in sentences.split():
                 word = word.lower()
                 if len(word) > 50:

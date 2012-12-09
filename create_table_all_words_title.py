@@ -85,6 +85,7 @@ if __name__ == '__main__':
                 word = word.lower()
                 if len(word) > 50:
                     print "length greater than 50 %s" %word
+                    continue
                 if word.isalpha():
                     counter[word] += 1
     print "num entry created: ", j

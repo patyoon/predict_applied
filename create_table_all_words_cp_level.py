@@ -40,20 +40,25 @@ if __name__ == '__main__':
     parser = OptionParser(usage)
     (options, args) = parser.parse_args()
 
-    if len(args) != 2:
-        print "need two arguments :  [input_text_file_name][table_name]"
+    if len(args) != 4:
+        print ("need four arguments :  [input_text_file_name][table_name]"
+               "[feature_type][segword_file]")
         sys.exit(1)
 
     conn = connect(host = 'localhost', user = 'root',
                    db = 'shepard', passwd = 'shepard')
 
     cursor = conn.cursor()
-
+    #assert args[3] in ['jnl', ' 
+    if args[2] == 'title':
+        idx = 5
+    else:
+        idx = 6
     create_statement = "CREATE TABLE IF NOT EXISTS " + args[1]+" (jnl char(255), word char(50), count INT) "
     print create_statement
     cursor.execute(create_statement)
 
-    f2 = open('jnl_abstract_word_segmentation', 'w')
+    f2 = open(args[3], 'w')
 
     curr_jnl = ""
     i = 0
@@ -67,10 +72,8 @@ if __name__ == '__main__':
             i+=1
             if i % 100000 == 0:
                 print "processed ", i, "th line ", curr_jnl
-            #print line.split('\t')
             jnl, sentences = (normalize_whitespace(line.split('\t')[2].lower().strip()),
-                              line.split('\t')[6].strip())
-            #jnl = get_jnl(cursor, jnl)
+                              line.split('\t')[idx].strip())
             if jnl != curr_jnl:
                 if len(counter) > 0:
                     for x in map(lambda (x,y,): ("'"+curr_jnl
@@ -86,8 +89,8 @@ if __name__ == '__main__':
                 counter = Counter()
             for word in sentences.split():
                 word = word.lower()
-                if len(word) > 30:
-                    print "length greater than 30 %s %s" %(word, jnl)
+                if len(word) > 50:
+                    print "length greater than 50 %s %s" %(word, jnl)
                     f2.write(jnl+'\t'+word+'\n')
                 if word.isalpha():
                     counter[word] += 1
