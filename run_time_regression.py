@@ -78,9 +78,9 @@ def run_log_reg(word_group_name, cited_paper_table_name, pub_year_cutoff):
                 print i, "th sparse insert"
             cursor.execute('SELECT word, count from cited_paper_level_'+word_group_name+' where cited_id='+str(cited_id))
             term_count_dict = dict(cursor.fetchall())
-            vec = map(lambda x : term_count_dict[x] if x in term_count_dict else 0, term_index_dict.keys())
+            #vec = map(lambda x : term_count_dict[x] if x in term_count_dict else 0, term_index_dict.keys())
             i+=1
-            X[[cited_id_index_dict[cited_id]],:-1] = vec
+            X[[cited_id_index_dict[cited_id]],term_count_dict.keys()] = term_count_dict.values()
         print "finished inserting count into sparse matrix"
         #row standardize X as distribution
 
