@@ -72,7 +72,7 @@ def get_sparse_matrix(cursor, feature_type, level_type):
             word_count_dict = dict(cursor.fetchall())
             vec = map(lambda x : word_count_dict[x] if x in word_count_dict else 0, word_index_dict.keys())
             i+=1
-            X[[level_index_dict[level]], [word_count_dict.keys()]] = word_count_dict.values()
+            X[[level_index_dict[level]],:] = vec
 
         pickle.dump(X, open("X_word_by_"+level_type+"_"+feature_type+".pkl", "wb"))
         print "finished inserting count into sparse matrix"
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     cursor = conn.cursor()
     X1 = get_sparse_matrix(cursor, 'abstract', 'jnl')
     X2 = get_sparse_matrix(cursor, 'title', 'jnl')
-    #X3 = get_sparse_matrix(cursor, 'title', 'cpid')
-    #X4 = get_sparse_matrix(cursor, 'abstract', 'cpid')
+    X3 = get_sparse_matrix(cursor, 'title', 'cpid')
+    X4 = get_sparse_matrix(cursor, 'abstract', 'cpid')
     Y1 = get_label_vector(cursor, 'title', 'jnl')
     Y2 = get_label_vector(cursor, 'title', 'cpid')
