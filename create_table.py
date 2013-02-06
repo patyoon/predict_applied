@@ -61,12 +61,15 @@ def create_table(db_host, db_user, db_name, table_name, generator,
     for entry in generator.yield_tuple():
         #length of tuple must be equal to # of columns
         if len(entry) != len(column_names):
-            print "length of entry and number of column does not match %d %d", (len(entry), len(column_names))
+            print "length of entry and number of column does not match %d %d(%s)" %(len(entry), len(column_names), entry)
             sys.exit(1)
         if char_map:
             for char in char_map:
                 if len(entry[char[0]]) > char[1]:
-                    print "length exceeds the data size %s(%d)" % (entry[char[0]], char[1])
+                    print "length exceeds the data size %s (%d, %d)" % (entry[char[0]],
+                                                                        char[1],
+                                                                        len(entry[char[0]]))
+                    sys.exit(1)
         entry = map(lambda x:  "'"+escape_string(x)+"'"  if x !='\N'
                     else "NULL", entry)
         insert_statement = ("INSERT INTO " + table_name + "(" + 
