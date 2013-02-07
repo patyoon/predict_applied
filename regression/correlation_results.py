@@ -6,13 +6,14 @@ from optparse import OptionParser
 from collections import defaultdict
 import pickle, random, os
 import numpy as np
-from  sklearn.linear_model import LinearRegression
-from regression_models import run_cv, run_confusion
+from  sklearn.linear_model import LinearRegression, LogisticRegression
+from regression_models import run_cv, run_confusion, logit
 from sklearn import metrics
-from utils import get_class_dist
+from utils import get_class_dist, get_level_index_dict
 from scipy.sparse import coo_matrix, csr_matrix, lil_matrix
 from collections import Counter
 import operator
+from scipy.stats import pearsonr
 
 CPID_JNL_LEV_TABLE = 'MED_cpid_disc_jnl_lev_sec_title_abstr'
 CPID_REFJNL_RLEV_TABLE = 'MED_cpid_refjnl_rlev_ct'
@@ -21,7 +22,7 @@ CPID_REFJNL_RLEV_TABLE = 'MED_cpid_refjnl_rlev_ct'
 
 if __name__ == "__main__":
     usage = ("usage: %prog [options]"
-             " [title_model] [abstract_model] [X_csr_title_matrix]")
+             " [X_input] [abstract_model] [X_csr_title_matrix]")
     parser = OptionParser(usage)
 
     conn = connect(host = 'localhost', user = 'root',
@@ -30,36 +31,37 @@ if __name__ == "__main__":
     (options, args) = parser.parse_args()
     #predict research level for them with trained model.
 
-    model = pickle.load(open(args[0], 'rb'))[0]
-
-    #only deals with active samples (more than two non-zero features)
-    (X_title, title_active_samples) = pickle.load(open(args[2], 'rb'))
-    (X_abstract, abstract_active_samples) = pickle.load(open(args[3], 'rb'))
-    sample_intersection = set(title_active_samples) & set(abstract_active_samples)
-    title_index = map(lambda x: title_active_samples.index(x), sample_intersection)
-    X_title = X_title.tocsr()[title_index]
-    Y_title = pickle.load(open(args[4], 'rb')).toarray().ravel()[title_index]
-    abstract_index = map(lambda x: title_active_samples.index(x), sample_intersection)
-    Y_abstract = pickle.load(open(args[5], 'rb')).toarray().ravel()[abstract_index]
-    X_title = X_title.tocsr()[abstract_index]
+    #model = pickle.load(open(args[0], 'rb'))[0]
+    
+    (X_combined, active_samples) = pickle.load(open(args[0], 'rb'))
+    print len(active_samples)
+    Y_combined = pickle.load(open(args[1], 'rb'))
+    all_papers = get_level_index_dict(cursor, 'cpid', True)
+    inactive_samples = list(set(all_papers.keys()) - set(active_samples))    
+    num_active_samples = len(active_samples)
+    num_inactive_samples = len(inactive_samples)
     k = 0
-    if os.path.exists("cited_journal.pkl"):
+    if os.path.exists(args[2]):
         (cited_journal_prediction,
          cited_predicted_cpids,
-         actual_label) = pickle.load(open('cited_journal.pkl', 'rb'))
+         actual_label) = pickle.load(open(args[2], 'rb'))
     else:
-        actual_label = np.zeros((len(active_samples), 1,))
-        cited_journal_prediction = np.zeros((len(active_samples), 4,))
+        actual_label = np.zeros((len(all_papers), 1,))
+        cited_journal_prediction = np.zeros((len(all_papers), 4,))
         cited_predicted_cpids = []
         #retrieve paper's research levels
         j = 0
-        for i in xrange(len(active_samples)):
+        for i in xrange(len(all_papers)):
+            if i < len(active_samples):
+                sample = active_samples[i]
+            else:
+                sample = inactive_samples[i - len(active_samples)]
             cursor.execute('SELECT lev from %s where cpid=%s' % (CPID_JNL_LEV_TABLE,
-                                                                 active_samples[i]))
+                                                                 sample))
             result = cursor.fetchall()
             actual_label[i, 0] = result[0][0]
             cursor.execute('SELECT rlev from %s where cpid=%s' %(CPID_REFJNL_RLEV_TABLE,
-                                                             +active_samples[i]))
+                                                             + sample))
             result = cursor.fetchall()
             if len(result) > 0:
                 dic = defaultdict(int)
@@ -74,73 +76,87 @@ if __name__ == "__main__":
                 k+=1
                 rlevl = [0,0,0,0]
             cited_journal_prediction[i, :] = np.array(rlevl)
-            cited_predicted_cpids.append(i)
+            cited_predicted_cpids.append(sample)
             if j % 100000 == 0:
                 print "processed %s th cpid" %j
             j+=1
-
         pickle.dump((cited_journal_prediction,
                      cited_predicted_cpids,
-                     actual_label), open('cited_journal.pkl', 'wb'))
+                     actual_label), open(args[2], 'wb'))
     print "# jnl without refjnl ", k
-    n_samples = len(cited_predicted_cpids)
-    random.shuffle(cited_predicted_cpids)
-    X_title, Y_title = (X_title[cited_predicted_cpids],
-                        Y_title[cited_predicted_cpids])
-    X_abstract, Y_abstract = (X_abstract[cited_predicted_cpids],
-                              Y_abstract[cited_predicted_cpids])
-    cited_journal_prediction = cited_journal_prediction[cited_predicted_cpids]
-    actual_label = actual_label[cited_predicted_cpids]
-    half = int(n_samples / 2)
-    if os.path.exists("title_model_prediction.pkl"):
-        title_model_prediction = pickle.load(open('title_model_prediction.pkl', 'rb'))
+    
+    random.seed(0)
+    p = range(num_active_samples)
+    random.shuffle(p)
+    print len(p)
+    print len(Y_combined.toarray())
+    print len(cited_predicted_cpids)
+    (X_combined, Y_combined) = (X_combined.tocsr()[p],
+                                Y_combined.toarray().ravel()[p])
+    cited_journal_prediction[:num_active_samples,:] = cited_journal_prediction[p]
+    actual_label[:num_active_samples] = actual_label[p]
+    cited_predicted_cpids = np.array(cited_predicted_cpids)
+    cited_predicted_cpids[:num_active_samples] = cited_predicted_cpids[p]
+    
+    half = int(num_active_samples / 2)
+    if os.path.exists(args[3]):
+        model_prediction = pickle.load(open(args[3], 'rb'))
     else:
-        title_model_prediction = title_model.fit(X_title[:half],
-                                             Y_title[:half]).predict_proba(X_title)
-        pickle.dump(title_model_prediction, open("title_model_prediction.pkl",'wb'))
-    print "loaded title model prediction"
-    if os.path.exists("abstract_model_prediction.pkl"):
-        abstract_model_prediction = pickle.load(open('abstract_model_prediction.pkl', 'rb'))
-    else:
-        abstract_model_prediction = abstract_model.fit(X_abstract[:half],
-                                                   Y_abstract[:half]).predict_proba(
-                                                       X_abstract)
-        pickle.dump(abstract_model_prediction, open("abstract_model_prediction.pkl",'wb'))
-    print "loaded abstract cited journal prediction"
-    del X_title
-    del Y_title
-    del X_abstract
-    del Y_abstract
+        model = LogisticRegression(penalty = 'l1', C=1e5)
+        prediction = model.fit(X_combined[:half],
+                                    Y_combined[:half]).predict_proba(X_combined)
+        model_prediction = np.zeros((len(all_papers), 4,))
+        print prediction.shape
+        print model_prediction.shape
+        model_prediction = np.concatenate(
+(prediction,  np.array([get_class_dist(Y_combined),]*num_inactive_samples)),axis=0)
+        pickle.dump(model_prediction, open(args[3],'wb'))
+    if not os.path.exists(args[6]):
+        model.fit(X_combined, Y_combined)
+        pickle.dump(model, open(args[6], 'wb'))
+    
     print "loaded cited journal prediction"
     #run regression with these features and measure weight
-    print type(abstract_model_prediction), type(title_model_prediction), type(cited_journal_prediction)
 
-    X = np.concatenate((cited_journal_prediction, title_model_prediction,
-                        abstract_model_prediction), axis=1)
-    Y = np.array(actual_label[active_samples]).ravel()
-    del cited_journal_prediction
-    del actual_label
-    if os.path.exists("combined_model_prediction.pkl"):
-        (clf, Y_) = pickle.load(open('combined_model_prediction.pkl', 'rb'))
+    X_full = np.concatenate((model_prediction,
+                        cited_journal_prediction), axis=1)
+    Y_full = np.array(actual_label).ravel()
+    if os.path.exists(args[4]):
+        (clf, Y_, Y_proba) = pickle.load(open(args[4], 'rb'))
     else:
-        clf = LinearRegression()
-        print "num valid samples" , len(cited_predicted_cpids)
-        sample_names = np.array(active_samples)[cited_predicted_cpids][half:]
-        Y_ = clf.fit(X[:half],Y[:half]).predict(X)
-        pickle.dump((clf, Y_,), open('combined_model_prediction.pkl', 'wb'))
+        #clf = LinearRegression()
+        clf = LogisticRegression()
+        X_full = csr_matrix(X_full)        
+        Y_ = clf.fit(X_full[:half],Y_full[:half]).predict(X_full)
+        Y_proba = clf.predict_proba(X_full)
+        pickle.dump((clf, Y_, Y_proba), open(args[4], 'wb'))
+    if not os.path.exists(args[5]):
+        clf.fit(X_full[:num_active_samples],Y_full[:num_active_samples])
+        pickle.dump(clf, open(args[5], 'wb'))
     print "coef", clf.coef_
-    print clf.score(X,Y)
-    print run_cv(clf, X,Y)
-    X = csr_matrix(X)
-    print X.get_shape()
-    print type(X)
-    print Counter(Y.tolist())
-    print metrics.confusion_matrix(Y[half:],
-                                   map(lambda x: max(enumerate(x),
-                                                     key=operator.itemgetter(1))[0]+1,
-                                       abstract_model_prediction)[half:])
-    print metrics.confusion_matrix(Y[half:],
-                                   map(lambda x: max(enumerate(x),
-                                                     key=operator.itemgetter(1))[0]+1,
-                                       title_model_prediction)[half:])
-    print metrics.confusion_matrix(Y[half:], map(lambda x: round(x), Y_.tolist())[half:])
+    print clf.score(X_full, Y_full)
+    Y_combined_ = map(lambda x: max(enumerate(x),
+                                    key=operator.itemgetter(1))[0]+1,
+                                    model_prediction)
+    print "Pearson correlation combined %f" %pearsonr(Y_full, Y_combined_)[0]
+    print "Pearson correlation full %f" %pearsonr(Y_full, Y_)[0]
+    
+    # print run_cv(clf, model_prediction, Y_full)
+    # print run_cv(clf, X_full, Y_full)
+    
+    # print metrics.confusion_matrix(Y_full[half:], Y_combined_[half:])
+    # print metrics.confusion_matrix(Y_full[half:], map(lambda x: round(x),
+    #                                                   Y_.tolist())[half:])
+    # print metrics.confusion_matrix(Y_full, Y_combined_)
+    # print metrics.confusion_matrix(Y_full, map(lambda x: round(x),
+    #                                                   Y_.tolist()))
+    print cited_predicted_cpids.shape
+    print Y_proba.shape
+    with open(args[7], 'w') as f:
+        for i in xrange(len(Y_)):
+            f.write("%d\t%f\t%f\t%f\t%f\n" %( cited_predicted_cpids[i],
+                    Y_proba[i][0], Y_proba[i][1], Y_proba[i][2], Y_proba[i][3]))
+    
+    # ipython correlation_results.py X_word_combined_by_cpid_100.pkl Y_cpid_combined_100.pkl cited_journal_pred_combined_100.pkl model_pred_combined_100.pkl full_pred_combined_100.pkl
+
+    #ipython correlation_results.py X_wordbined_by_cpid_100_True.pkl Y_cpid_combined_100_True.pkl cited_journal_pred_combined_100_True.pkl combined_pred_combined_100_True.pkl full_pred_combined_100_True.pkl full_pred_combined_100_True_model.pkl combined_pred_combined_100_True_model.pkl Y_proba_pred_combiend_100_True.pkl

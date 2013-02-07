@@ -46,12 +46,17 @@ def get_index_word_dicts(cursor, feature_type, threshold=100):
     return (index_word_dict, word_index_dict)
 
 def get_level_index_dict(cursor, level_type, get_zero_levels = False):
-    if os.path.exists("level_index_%s_dict.pkl" % level_type):
-        level_index_dict = pickle.load(open("level_index_%s_dict.pkl" % level_type, "rb"))
+    if os.path.exists("level_index_%s%s_dict.pkl"
+                      % (level_type,
+                         ("_"+str(get_zero_levels)
+                          if get_zero_levels else ""))):
+        level_index_dict = pickle.load(open("level_index_%s%s_dict.pkl"
+                                            % (level_type, ("_"+str(get_zero_levels)
+                                               if get_zero_levels else "")), "rb"))
     else:
         #count number of distinct level in cited_paper_words_count table
         if get_zero_levels:
-            cursor.execute('SELECT distinct %s FROM %s where and %s is not null'
+            cursor.execute('SELECT distinct %s FROM %s where %s is not null'
                            % (level_type, CPID_JNL_LEV_TABLE, level_type))
         else:
             cursor.execute('SELECT distinct %s FROM %s where lev!=0 and %s is not null'
@@ -62,7 +67,10 @@ def get_level_index_dict(cursor, level_type, get_zero_levels = False):
         for level in levels:
             level_index_dict[level] = i
             i+=1
-        pickle.dump(level_index_dict, open("level_index_%s_dict.pkl" % level_type, "wb"))
+        pickle.dump(level_index_dict, open("level_index_%s%s_dict.pkl"
+                                           % (level_type, ("_"+str(get_zero_levels)
+                                                           if get_zero_levels
+                                                           else "")), "wb"))
         print len(level_index_dict)
     return level_index_dict
 

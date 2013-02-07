@@ -16068,3 +16068,9 @@
   0.60565421  0.6021594   0.59292513  0.60136383]
 2013-01-29 01:20:21,188 - regression - INFO - scores. [ 0.60290942  0.59171497  0.59239686  0.59941471  0.61546767  0.60484146
   0.60565421  0.6021594   0.59292513  0.60136383]
+2013-02-06 10:22:40,548 - regression - INFO - name: logit_
+2013-02-06 10:22:40,559 - regression - INFO - running confusion matrix
+2013-02-06 10:22:47,433 - regression - INFO - name: logit_
+2013-02-06 10:22:47,433 - regression - INFO - running confusion matrix
+2013-02-06 10:22:50,354 - regression - INFO - name: logit_
+2013-02-06 10:22:50,354 - regression - INFO - running confusion matrix
