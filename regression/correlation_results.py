@@ -24,7 +24,6 @@ if __name__ == "__main__":
     usage = ("usage: %prog [options]"
              " [X_input] [abstract_model] [X_csr_title_matrix]")
     parser = OptionParser(usage)
-
     conn = connect(host = 'localhost', user = 'root',
                    db = 'shepard', passwd='shepard')
     cursor = conn.cursor()
@@ -100,7 +99,7 @@ if __name__ == "__main__":
     
     half = int(num_active_samples / 2)
     if os.path.exists(args[3]):
-        model_prediction = pickle.load(open(args[3], 'rb'))
+        (model, model_prediction) = pickle.load(open(args[3], 'rb'))
     else:
         model = LogisticRegression(penalty = 'l1', C=1e5)
         prediction = model.fit(X_combined[:half],
@@ -110,11 +109,12 @@ if __name__ == "__main__":
         print model_prediction.shape
         model_prediction = np.concatenate(
 (prediction,  np.array([get_class_dist(Y_combined),]*num_inactive_samples)),axis=0)
-        pickle.dump(model_prediction, open(args[3],'wb'))
+        pickle.dump((model, model_prediction)
+                    , open(args[3],'wb'))
     if not os.path.exists(args[6]):
         model.fit(X_combined, Y_combined)
         pickle.dump(model, open(args[6], 'wb'))
-    
+    print get_class_dist(Y_combined)
     print "loaded cited journal prediction"
     #run regression with these features and measure weight
 
@@ -159,4 +159,4 @@ if __name__ == "__main__":
     
     # ipython correlation_results.py X_word_combined_by_cpid_100.pkl Y_cpid_combined_100.pkl cited_journal_pred_combined_100.pkl model_pred_combined_100.pkl full_pred_combined_100.pkl
 
-    #ipython correlation_results.py X_wordbined_by_cpid_100_True.pkl Y_cpid_combined_100_True.pkl cited_journal_pred_combined_100_True.pkl combined_pred_combined_100_True.pkl full_pred_combined_100_True.pkl full_pred_combined_100_True_model.pkl combined_pred_combined_100_True_model.pkl Y_proba_pred_combiend_100_True.pkl
+    #ipython correlation_results.py X_wordbined_by_cpid_100_True.pkl Y_cpid_combined_100_True.pkl cited_journal_pred_combined_100_True.pkl combined_pred_combined_100_True.pkl full_pred_combined_100_True.pkl full_pred_combined_100_True_model.pkl combined_pred_combined_100_True_model.pkl Y_proba_pred_combiend_100_True.Pkl
